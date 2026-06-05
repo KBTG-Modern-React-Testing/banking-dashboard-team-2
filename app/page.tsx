@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { useForm } from "react-hook-form";
+import "./page.css";
 
 interface Transaction {
   id: string;
@@ -12,7 +13,12 @@ interface Transaction {
   category: string;
 }
 
-const mockTransactions: Transaction[] = [
+interface TransferFormData {
+  amount: string;
+  toAccount: string;
+}
+
+const initialTransactions: Transaction[] = [
   {
     id: "1",
     description: "Grocery Store",
@@ -55,104 +61,132 @@ const mockTransactions: Transaction[] = [
   },
 ];
 
+let transactionCounter = Date.now();
+
 export default function Home() {
   const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
-  const [transferAmount, setTransferAmount] = useState("");
-  const [transferAccount, setTransferAccount] = useState("");
-  const [transferError, setTransferError] = useState("");
+  const [balance, setBalance] = useState(1234.56);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [transferSuccess, setTransferSuccess] = useState("");
 
-  const filteredTransactions = mockTransactions.filter((transaction) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<TransferFormData>({
+    defaultValues: {
+      amount: "",
+      toAccount: "",
+    },
+  });
+
+  const filteredTransactions = transactions.filter((transaction) => {
     if (filter === "all") return true;
     return transaction.type === filter;
   });
 
-  const handleTransfer = (e: React.FormEvent) => {
-    e.preventDefault();
-    setTransferError("");
-    setTransferSuccess("");
+  const onSubmit = (data: TransferFormData) => {
+    const amount = parseFloat(data.amount);
 
-    // Validation
-    if (!transferAmount || !transferAccount) {
-      setTransferError("Please fill in all fields");
+    // Validate amount > 0
+    if (amount <= 0) {
       return;
     }
 
-    const amount = parseFloat(transferAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setTransferError("Amount must be greater than 0");
-      return;
-    }
+    // Create new transaction
+    const newTransaction: Transaction = {
+      id: (transactionCounter++).toString(),
+      description: `Transfer to ${data.toAccount}`,
+      amount,
+      type: "debit",
+      date: new Date().toISOString().split("T")[0],
+      category: "Transfer",
+    };
 
-    // Success
-    setTransferSuccess(`Transfer of $${amount.toFixed(2)} to ${transferAccount} initiated`);
-    setTransferAmount("");
-    setTransferAccount("");
+    // Add new transaction to the top of the list
+    setTransactions([newTransaction, ...transactions]);
+
+    // Update account balance (subtract the transfer amount)
+    setBalance(balance - amount);
+
+    // Show success message
+    setTransferSuccess(`Transfer of $${amount.toFixed(2)} to ${data.toAccount} initiated`);
+
+    // Reset form
+    reset();
 
     // Clear success message after 3 seconds
     setTimeout(() => setTransferSuccess(""), 3000);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="page-container">
+      <div className="page-content">
         {/* Account Balance Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-gray-600 text-sm font-medium mb-2">
+        <div className="card-mb">
+          <h1 className="balance-label">
             Account Balance
           </h1>
-          <p className="text-4xl font-bold text-gray-900">$1,234.56</p>
+          <p className="balance-amount">${balance.toFixed(2)}</p>
         </div>
 
         {/* Transfer Form Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="form-section">
+          <h2 className="form-title">
             Transfer Money
           </h2>
 
-          <form onSubmit={handleTransfer} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="form-group">
             {/* Amount Input */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="form-label">
                 Amount
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-500">$</span>
+              <div className="form-input-wrapper">
+                <span className="form-input-prefix">$</span>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={transferAmount}
-                  onChange={(e) => setTransferAmount(e.target.value)}
-                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  {...register("amount", {
+                    required: "Amount is required",
+                    validate: (value) => {
+                      const num = parseFloat(value);
+                      return num > 0 || "Amount must be greater than 0";
+                    },
+                  })}
+                  className={`form-input-base form-input-amount ${errors.amount ? "form-input-error" : "form-input-valid"
+                    }`}
                 />
               </div>
+              {errors.amount && (
+                <p className="form-error-text">{errors.amount.message}</p>
+              )}
             </div>
 
             {/* Account Input */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="form-label">
                 To Account
               </label>
               <input
                 type="text"
                 placeholder="Account number or email"
-                value={transferAccount}
-                onChange={(e) => setTransferAccount(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {...register("toAccount", {
+                  required: "Account is required",
+                })}
+                className={`form-input-base ${errors.toAccount ? "form-input-error" : "form-input-valid"
+                  }`}
               />
+              {errors.toAccount && (
+                <p className="form-error-text">{errors.toAccount.message}</p>
+              )}
             </div>
-
-            {/* Error Message */}
-            {transferError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-                {transferError}
-              </div>
-            )}
 
             {/* Success Message */}
             {transferSuccess && (
-              <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm">
+              <div className="message-success">
                 {transferSuccess}
               </div>
             )}
@@ -160,7 +194,7 @@ export default function Home() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="btn-submit"
             >
               Transfer
             </button>
@@ -168,37 +202,31 @@ export default function Home() {
         </div>
 
         {/* Transactions Section */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="transactions-card">
+          <div className="transactions-header">
+            <h2 className="transactions-title">
               Recent Transactions
             </h2>
 
             {/* Filter Buttons */}
-            <div className="flex gap-2">
+            <div className="filter-buttons">
               <button
                 onClick={() => setFilter("all")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "all"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className={`filter-btn-base ${filter === "all" ? "filter-btn-active" : "filter-btn-inactive"
                   }`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilter("credit")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "credit"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className={`filter-btn-base ${filter === "credit" ? "filter-btn-active-income" : "filter-btn-inactive"
                   }`}
               >
                 Income
               </button>
               <button
                 onClick={() => setFilter("debit")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === "debit"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                className={`filter-btn-base ${filter === "debit" ? "filter-btn-active-expense" : "filter-btn-inactive"
                   }`}
               >
                 Expenses
@@ -206,25 +234,25 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="transaction-list">
             {filteredTransactions.length > 0 ? (
               filteredTransactions.map((transaction) => (
-                <div key={transaction.id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
+                <div key={transaction.id} className="transaction-item">
+                  <div className="transaction-inner">
+                    <div className="transaction-details">
+                      <p className="transaction-description">
                         {transaction.description}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="transaction-meta">
                         {transaction.category} •{" "}
                         {new Date(transaction.date).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="transaction-amounts">
                       <p
-                        className={`font-semibold ${transaction.type === "credit"
-                          ? "text-green-600"
-                          : "text-gray-900"
+                        className={`transaction-amount-base ${transaction.type === "credit"
+                            ? "transaction-amount-credit"
+                            : "transaction-amount-debit"
                           }`}
                       >
                         {transaction.type === "credit" ? "+" : "-"}$
@@ -235,16 +263,10 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="transaction-empty">
                 No transactions found
               </div>
             )}
-          </div>
-
-          <div className="px-6 py-4 bg-gray-50 text-center">
-            <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-              View All Transactions
-            </button>
           </div>
         </div>
       </div>
