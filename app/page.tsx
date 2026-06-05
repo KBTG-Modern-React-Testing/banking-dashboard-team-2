@@ -64,10 +64,24 @@ const initialTransactions: Transaction[] = [
 let transactionCounter = Date.now();
 
 export default function Home() {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("theme");
+      return (savedTheme as "light" | "dark") || "light";
+    }
+    return "light";
+  });
   const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
   const [balance, setBalance] = useState(1234.56);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [transferSuccess, setTransferSuccess] = useState("");
+
+  // Save theme preference
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+  };
 
   const {
     register,
@@ -121,8 +135,19 @@ export default function Home() {
   };
 
   return (
-    <div className="page-container">
+    <div className={`page-container ${theme}`}>
       <div className="page-content">
+        {/* Theme Switcher */}
+        <div className="theme-switcher">
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            aria-label="Toggle theme"
+          >
+            {theme === "light" ? "🌙" : "☀️"}
+          </button>
+        </div>
+
         {/* Account Balance Section */}
         <div className="card-mb">
           <h1 className="balance-label">
@@ -251,8 +276,8 @@ export default function Home() {
                     <div className="transaction-amounts">
                       <p
                         className={`transaction-amount-base ${transaction.type === "credit"
-                            ? "transaction-amount-credit"
-                            : "transaction-amount-debit"
+                          ? "transaction-amount-credit"
+                          : "transaction-amount-debit"
                           }`}
                       >
                         {transaction.type === "credit" ? "+" : "-"}$
