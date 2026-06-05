@@ -23,8 +23,6 @@ let mockTransactions: Transaction[] = [
   },
 ];
 
-let mockTheme: "light" | "dark" = "light";
-
 export const handlers = [
   // GET /api/account — return current balance
   http.get("/api/account", () => {
@@ -49,17 +47,5 @@ export const handlers = [
       { transaction: newTransaction, balance: mockBalance },
       { status: 201 },
     );
-  }),
-
-  // GET /api/theme — return saved theme preference
-  http.get("/api/theme", () => {
-    return HttpResponse.json({ theme: mockTheme });
-  }),
-
-  // PUT /api/theme — update theme preference
-  http.put("/api/theme", async ({ request }) => {
-    const body = (await request.json()) as { theme: "light" | "dark" };
-    mockTheme = body.theme;
-    return HttpResponse.json({ theme: mockTheme });
   }),
 ];

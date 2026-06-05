@@ -18,10 +18,6 @@ export default function Home() {
 
   // Load initial data from mock API
   useEffect(() => {
-    fetch("/api/theme")
-      .then((res) => res.json())
-      .then((data: { theme: "light" | "dark" }) => setTheme(data.theme));
-
     fetch("/api/account")
       .then((res) => res.json())
       .then((data: { balance: number }) => setBalance(data.balance));
@@ -35,11 +31,6 @@ export default function Home() {
   const toggleTheme = async () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    await fetch("/api/theme", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme: newTheme }),
-    });
   };
 
   const handleTransfer = async (data: TransferFormData) => {
